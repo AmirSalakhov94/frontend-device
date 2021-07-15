@@ -1,13 +1,13 @@
-import React, {createContext, useContext} from 'react';
+import React from 'react';
 import LeafletMap from "./components/LeafletMap";
-import {BrowserRouter, Redirect, Route, Switch, useLocation} from 'react-router-dom';
+import {BrowserRouter, Route, Switch} from 'react-router-dom';
 import Login from "./components/Login";
 
 const App:React.FC = () => {
     return (
         <div className="wrapper">
             <h1>Application</h1>
-            <BrowserRouter>
+            <BrowserRouter basename="/front">
                 <Switch>
                     <Route path="/login">
                         <Login/>
