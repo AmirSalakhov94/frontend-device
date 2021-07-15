@@ -1,5 +1,5 @@
-import React, { useReducer, useEffect } from 'react';
-import { createStyles, makeStyles, Theme } from '@material-ui/core/styles';
+import React, {useEffect, useReducer} from 'react';
+import {createStyles, makeStyles, Theme} from '@material-ui/core/styles';
 
 import TextField from '@material-ui/core/TextField';
 import Card from '@material-ui/core/Card';
@@ -7,6 +7,7 @@ import CardContent from '@material-ui/core/CardContent';
 import CardActions from '@material-ui/core/CardActions';
 import CardHeader from '@material-ui/core/CardHeader';
 import Button from '@material-ui/core/Button';
+import { useHistory } from "react-router-dom";
 
 const useStyles = makeStyles((theme: Theme) =>
     createStyles({
@@ -93,9 +94,64 @@ const reducer = (state: State, action: Action): State => {
     }
 }
 
+function refreshToken(refreshToken: string) {
+    return fetch('/oauth/token', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+            'Authorization': 'Basic ZGV2aWNlcmVudGVyOmRldmljZXJlbnRlcnNlY3JldA==',
+        },
+        body: new URLSearchParams({
+            'refresh_token': refreshToken,
+            'grant_type': 'refresh_token'
+        }),
+    }).then(async res => {
+        if (res.status === 200) {
+            const tokenData = await res.json();
+            localStorage.setItem("access_token", tokenData.access_token);
+            localStorage.setItem("refresh_token", tokenData.refresh_token);
+            localStorage.setItem("user", JSON.stringify(tokenData));
+            return Promise.resolve();
+        }
+        return Promise.reject();
+    });
+}
+
 const Login = () => {
     const classes = useStyles();
+    const history = useHistory();
     const [state, dispatch] = useReducer(reducer, initialState);
+
+    function getTokenData(username: string, password: string) {
+        return fetch('/oauth/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+                'Authorization': 'Basic ZGV2aWNlcmVudGVyOmRldmljZXJlbnRlcnNlY3JldA==',
+            },
+            body: new URLSearchParams({
+                'username': username,
+                'password': password,
+                'grant_type': 'password'
+            }),
+        }).then(async res => {
+            if (res.status === 200) {
+                const tokenData = await res.json();
+                localStorage.setItem("access_token", tokenData.access_token);
+                localStorage.setItem("refresh_token", tokenData.refresh_token);
+                localStorage.setItem("user", JSON.stringify(tokenData))
+                dispatch({
+                    type: 'loginSuccess',
+                    payload: 'Login Successfully'
+                });
+                history.push("/map");
+            }
+            dispatch({
+                type: 'loginFailed',
+                payload: 'Incorrect username or password'
+            });
+        });
+    }
 
     useEffect(() => {
         if (state.username.trim() && state.password.trim()) {
@@ -112,17 +168,7 @@ const Login = () => {
     }, [state.username, state.password]);
 
     const handleLogin = () => {
-        if (state.username === 'albert@email.com' && state.password === 'password') {
-            dispatch({
-                type: 'loginSuccess',
-                payload: 'Login Successfully'
-            });
-        } else {
-            dispatch({
-                type: 'loginFailed',
-                payload: 'Incorrect username or password'
-            });
-        }
+        getTokenData(state.username, state.password);
     };
 
     const handleKeyPress = (event: React.KeyboardEvent) => {
