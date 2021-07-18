@@ -7,7 +7,38 @@ import CardContent from '@material-ui/core/CardContent';
 import CardActions from '@material-ui/core/CardActions';
 import CardHeader from '@material-ui/core/CardHeader';
 import Button from '@material-ui/core/Button';
-import { useHistory } from "react-router-dom";
+import {useHistory} from "react-router-dom";
+
+class Auth {
+    refreshToken(refreshToken: string) {
+        return fetch('/oauth/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+                'Authorization': Buffer.from('devicerenter:devicerentersecret').toString('base64'),
+            },
+            body: new URLSearchParams({
+                'refresh_token': refreshToken,
+                'grant_type': 'refresh_token'
+            }),
+        });
+    }
+
+    getTokenData(username: string, password: string) {
+        return fetch('/oauth/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+                'Authorization': Buffer.from('devicerenter:devicerentersecret').toString('base64'),
+            },
+            body: new URLSearchParams({
+                'username': username,
+                'password': password,
+                'grant_type': 'password'
+            }),
+        });
+    }
+}
 
 const useStyles = makeStyles((theme: Theme) =>
     createStyles({
@@ -94,64 +125,11 @@ const reducer = (state: State, action: Action): State => {
     }
 }
 
-function refreshToken(refreshToken: string) {
-    return fetch('/oauth/token', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
-            'Authorization': 'Basic ZGV2aWNlcmVudGVyOmRldmljZXJlbnRlcnNlY3JldA==',
-        },
-        body: new URLSearchParams({
-            'refresh_token': refreshToken,
-            'grant_type': 'refresh_token'
-        }),
-    }).then(async res => {
-        if (res.status === 200) {
-            const tokenData = await res.json();
-            localStorage.setItem("access_token", tokenData.access_token);
-            localStorage.setItem("refresh_token", tokenData.refresh_token);
-            localStorage.setItem("user", JSON.stringify(tokenData));
-            return Promise.resolve();
-        }
-        return Promise.reject();
-    });
-}
-
 const Login = () => {
     const classes = useStyles();
     const history = useHistory();
     const [state, dispatch] = useReducer(reducer, initialState);
-
-    function getTokenData(username: string, password: string) {
-        return fetch('/oauth/token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
-                'Authorization': 'Basic ZGV2aWNlcmVudGVyOmRldmljZXJlbnRlcnNlY3JldA==',
-            },
-            body: new URLSearchParams({
-                'username': username,
-                'password': password,
-                'grant_type': 'password'
-            }),
-        }).then(async res => {
-            if (res.status === 200) {
-                const tokenData = await res.json();
-                localStorage.setItem("access_token", tokenData.access_token);
-                localStorage.setItem("refresh_token", tokenData.refresh_token);
-                localStorage.setItem("user", JSON.stringify(tokenData))
-                dispatch({
-                    type: 'loginSuccess',
-                    payload: 'Login Successfully'
-                });
-                history.push("/map");
-            }
-            dispatch({
-                type: 'loginFailed',
-                payload: 'Incorrect username or password'
-            });
-        });
-    }
+    const auth = new Auth();
 
     useEffect(() => {
         if (state.username.trim() && state.password.trim()) {
@@ -168,7 +146,24 @@ const Login = () => {
     }, [state.username, state.password]);
 
     const handleLogin = () => {
-        getTokenData(state.username, state.password);
+        auth.getTokenData(state.username, state.password)
+            .then(async res => {
+                if (res.status === 200) {
+                    const tokenData = await res.json();
+                    localStorage.setItem("access_token", tokenData.access_token);
+                    localStorage.setItem("refresh_token", tokenData.refresh_token);
+                    localStorage.setItem("user", JSON.stringify(tokenData))
+                    dispatch({
+                        type: 'loginSuccess',
+                        payload: 'Login Successfully'
+                    });
+                    history.push("/map");
+                }
+                dispatch({
+                    type: 'loginFailed',
+                    payload: 'Incorrect username or password'
+                });
+            });
     };
 
     const handleKeyPress = (event: React.KeyboardEvent) => {
